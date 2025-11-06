@@ -535,3 +535,194 @@ install(TARGETS ${trdp_library_pairs}
 )
 
 install(DIRECTORY src/api/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/trdp FILES_MATCHING PATTERN "*.h")
+
+file(READ "${trdp_root}/src/common/trdp_private.h" _trdp_private_header)
+string(REGEX MATCH "#define[ \t]+TRDP_VERSION[ \t]+([0-9]+)" _trdp_version_match "${_trdp_private_header}")
+set(TRDP_VERSION_MAJOR "${CMAKE_MATCH_1}")
+string(REGEX MATCH "#define[ \t]+TRDP_RELEASE[ \t]+([0-9]+)" _trdp_release_match "${_trdp_private_header}")
+set(TRDP_VERSION_RELEASE "${CMAKE_MATCH_1}")
+if(TRDP_VERSION_MAJOR AND TRDP_VERSION_RELEASE)
+    set(TRDP_SOURCE_VERSION "${TRDP_VERSION_MAJOR}.${TRDP_VERSION_RELEASE}")
+else()
+    set(TRDP_SOURCE_VERSION "unknown")
+endif()
+unset(_trdp_private_header)
+unset(_trdp_version_match)
+unset(_trdp_release_match)
+
+set(_trdp_default_flint "flint")
+if(DEFINED ENV{FLINT} AND NOT "$ENV{FLINT}" STREQUAL "")
+    set(_trdp_default_flint "$ENV{FLINT}")
+endif()
+set(TRDP_FLINT_COMMAND "${_trdp_default_flint}" CACHE STRING "FLINT command used for TRDP linting")
+unset(_trdp_default_flint)
+
+set(_trdp_default_rule_dir "")
+if(DEFINED ENV{LINT_RULE_DIR} AND NOT "$ENV{LINT_RULE_DIR}" STREQUAL "")
+    file(TO_CMAKE_PATH "$ENV{LINT_RULE_DIR}" _trdp_default_rule_dir)
+    string(REGEX REPLACE "/$" "" _trdp_default_rule_dir "${_trdp_default_rule_dir}")
+endif()
+set(TRDP_LINT_RULE_DIR "${_trdp_default_rule_dir}" CACHE PATH "Directory containing TRDP lint rule files")
+unset(_trdp_default_rule_dir)
+set(TRDP_LINT_EXTRA_ARGS "" CACHE STRING "Additional arguments forwarded to the TRDP lint command")
+
+set(TRDP_RUN_LINT_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/RunLint.cmake")
+set(TRDP_LINT_DIR "${CMAKE_CURRENT_BINARY_DIR}/lint")
+set(TRDP_LINT_OUTPUT "${TRDP_LINT_DIR}/final.lint")
+
+set(trdp_lint_args +v)
+if(TRDP_LINT_RULE_DIR)
+    list(APPEND trdp_lint_args "-i${TRDP_LINT_RULE_DIR}")
+    list(APPEND trdp_lint_args "${TRDP_LINT_RULE_DIR}/co-gcc.lnt")
+endif()
+
+set(trdp_lint_include_dirs ${trdp_public_includes})
+list(REMOVE_DUPLICATES trdp_lint_include_dirs)
+foreach(include_dir IN LISTS trdp_lint_include_dirs)
+    if(IS_ABSOLUTE "${include_dir}")
+        set(_lint_dir "${include_dir}")
+    else()
+        set(_lint_dir "${trdp_root}/${include_dir}")
+    endif()
+    list(APPEND trdp_lint_args "-i${_lint_dir}")
+endforeach()
+unset(_lint_dir)
+
+list(APPEND trdp_lint_args "-D${TRDP_TARGET_OS}")
+if(TRDP_TARGET_VOS STREQUAL "posix")
+    list(APPEND trdp_lint_args "-DPOSIX")
+endif()
+if(TRDP_MD_SUPPORT)
+    list(APPEND trdp_lint_args "-DMD_SUPPORT=1")
+else()
+    list(APPEND trdp_lint_args "-DMD_SUPPORT=0")
+endif()
+if(TRDP_SOA_SUPPORT)
+    list(APPEND trdp_lint_args "-DSOA_SUPPORT")
+endif()
+if(TRDP_TSN_SUPPORT)
+    list(APPEND trdp_lint_args "-DTSN_SUPPORT")
+endif()
+if(TRDP_RT_THREADS)
+    list(APPEND trdp_lint_args "-DRT_THREADS")
+endif()
+if(TRDP_DEBUG)
+    list(APPEND trdp_lint_args "-DDEBUG")
+else()
+    list(APPEND trdp_lint_args "-DNO_DEBUG")
+endif()
+list(APPEND trdp_lint_args "-w3" "-e655" "-summary" "-u")
+
+if(TRDP_LINT_EXTRA_ARGS)
+    separate_arguments(_trdp_extra_lint_args NATIVE_COMMAND "${TRDP_LINT_EXTRA_ARGS}")
+    list(APPEND trdp_lint_args ${_trdp_extra_lint_args})
+    unset(_trdp_extra_lint_args)
+endif()
+
+set(trdp_lint_sources ${trdp_core_sources} ${trdp_optional_sources} ${trdp_high_perf_sources})
+list(REMOVE_DUPLICATES trdp_lint_sources)
+set(TRDP_LINT_ABSOLUTE_SOURCES)
+foreach(src IN LISTS trdp_lint_sources)
+    if(IS_ABSOLUTE "${src}")
+        set(_abs_src "${src}")
+    else()
+        set(_abs_src "${trdp_root}/${src}")
+    endif()
+    if(EXISTS "${_abs_src}")
+        list(APPEND TRDP_LINT_ABSOLUTE_SOURCES "${_abs_src}")
+    endif()
+endforeach()
+unset(_abs_src)
+list(SORT TRDP_LINT_ABSOLUTE_SOURCES)
+list(JOIN trdp_lint_args " " TRDP_LINT_ARGS_STRING)
+list(JOIN TRDP_LINT_ABSOLUTE_SOURCES " " TRDP_LINT_SOURCE_STRING)
+
+add_custom_command(
+    OUTPUT ${TRDP_LINT_OUTPUT}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${TRDP_LINT_DIR}
+    COMMAND ${CMAKE_COMMAND}
+        -DOUTPUT=${TRDP_LINT_OUTPUT}
+        -DFLINT_CMD=${TRDP_FLINT_COMMAND}
+        -DFLINT_ARGS=${TRDP_LINT_ARGS_STRING}
+        -DSOURCES="${TRDP_LINT_SOURCE_STRING}"
+        -P ${TRDP_RUN_LINT_SCRIPT}
+    DEPENDS ${TRDP_LINT_ABSOLUTE_SOURCES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Running TRDP lint"
+    VERBATIM
+)
+
+add_custom_target(trdp_lint DEPENDS ${TRDP_LINT_OUTPUT})
+
+find_program(TRDP_DOXYGEN_COMMAND doxygen)
+if(TRDP_DOXYGEN_COMMAND STREQUAL "TRDP_DOXYGEN_COMMAND-NOTFOUND")
+    set(TRDP_DOXYGEN_COMMAND "")
+endif()
+find_program(TRDP_MAKE_COMMAND NAMES make gmake)
+if(TRDP_MAKE_COMMAND STREQUAL "TRDP_MAKE_COMMAND-NOTFOUND")
+    set(TRDP_MAKE_COMMAND "")
+endif()
+
+set(TRDP_REFERENCE_PDF "${trdp_root}/doc/latex/refman.pdf")
+set(TRDP_REFERENCE_MANUAL "${trdp_root}/doc/TCN-TRDP2-D-BOM-033-xx - TRDP Reference Manual.pdf")
+
+add_custom_target(doc
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${trdp_root}
+        -DDOXYGEN_CMD=${TRDP_DOXYGEN_COMMAND}
+        -DMAKE_CMD=${TRDP_MAKE_COMMAND}
+        -DPDF_OUTPUT=${TRDP_REFERENCE_PDF}
+        -DPDF_DESTINATION=${TRDP_REFERENCE_MANUAL}
+        -P ${CMAKE_SOURCE_DIR}/cmake/RunTrdpDoc.cmake
+    BYPRODUCTS ${TRDP_REFERENCE_PDF} ${TRDP_REFERENCE_MANUAL}
+    COMMENT "Building TRDP documentation"
+    USES_TERMINAL
+)
+
+find_program(TRDP_TAR_COMMAND tar)
+if(TRDP_TAR_COMMAND STREQUAL "TRDP_TAR_COMMAND-NOTFOUND")
+    set(TRDP_TAR_COMMAND "")
+endif()
+
+set(TRDP_DIST_DIR "${CMAKE_CURRENT_BINARY_DIR}/dist")
+set(TRDP_DIST_DEBIAN "${TRDP_DIST_DIR}/libtrdp_${TRDP_SOURCE_VERSION}.debian.tar.xz")
+set(TRDP_DIST_ORIG "${TRDP_DIST_DIR}/libtrdp_${TRDP_SOURCE_VERSION}.orig.tar.xz")
+
+add_custom_target(dist
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${trdp_root}
+        -DTOP_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DOUTPUT_DIR=${TRDP_DIST_DIR}
+        -DDIST_DEBIAN=${TRDP_DIST_DEBIAN}
+        -DDIST_ORIG=${TRDP_DIST_ORIG}
+        -DSRC_VERSION=${TRDP_SOURCE_VERSION}
+        -DTAR_CMD=${TRDP_TAR_COMMAND}
+        -P ${CMAKE_SOURCE_DIR}/cmake/RunTrdpDist.cmake
+    BYPRODUCTS ${TRDP_DIST_DEBIAN} ${TRDP_DIST_ORIG}
+    COMMENT "Creating TRDP distribution archives"
+    USES_TERMINAL
+)
+
+find_program(TRDP_DEBUILD_COMMAND debuild)
+if(TRDP_DEBUILD_COMMAND STREQUAL "TRDP_DEBUILD_COMMAND-NOTFOUND")
+    set(TRDP_DEBUILD_COMMAND "")
+endif()
+
+set(TRDP_DEB_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/pkg")
+
+add_custom_target(bindeb-pkg
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${trdp_root}
+        -DOUTPUT_DIR=${TRDP_DEB_OUTPUT_DIR}
+        -DDEBUILD_CMD=${TRDP_DEBUILD_COMMAND}
+        -DSRC_VERSION=${TRDP_SOURCE_VERSION}
+        -P ${CMAKE_SOURCE_DIR}/cmake/RunBindebPkg.cmake
+    COMMENT "Building TRDP Debian binary packages"
+    USES_TERMINAL
+)
+
+add_custom_target(deb-pkg
+    COMMAND ${CMAKE_COMMAND} -E echo "Building the source pkg is not yet available."
+    COMMENT "Reporting TRDP source package status"
+)
+add_dependencies(deb-pkg bindeb-pkg)

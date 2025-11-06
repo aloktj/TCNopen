@@ -71,8 +71,18 @@ TCNOpen follows the Open Source scheme, as the software is jointly developed by 
 
 ## Licenses
 
-TRDP: MPLv2.0 http://www.mozilla.org/MPL/2.0/ 
+TRDP: MPLv2.0 http://www.mozilla.org/MPL/2.0/
 
-TRDPSpy: GPL http://www.gnu.org/licenses/gpl.html 
+TRDPSpy: GPL http://www.gnu.org/licenses/gpl.html
 
 TCNOpen Web Site http://www.tcnopen.eu/
+
+## CMake helper targets
+
+The top-level CMake project now mirrors several legacy make targets:
+
+* `cmake --build <build-dir> --target lint` runs the SDTv2 and TRDP lint recipes. Both targets accept the legacy `FLINT` and `LINT_RULE_DIR` environment variables so you can point to a FlexeLint binary and rule directory without reconfiguring the build.
+* `cmake --build <build-dir> --target doc` invokes Doxygen (and, if available, `make` in `trdp/doc/latex`) to refresh the TRDP reference manual and copy it to `doc/TCN-TRDP2-D-BOM-033-xx - TRDP Reference Manual.pdf`.
+* `cmake --build <build-dir> --target dist` wraps the source archive creation logic. It requires a working `tar` executable and writes the archives into `<build-dir>/dist`.
+* `cmake --build <build-dir> --target bindeb-pkg` runs `debuild -us -uc -i -I -b` when `debuild` is available and moves the resulting packages to `<build-dir>/pkg`. The companion `deb-pkg` target still only reports that source packages are unavailable.
+* `cmake --build <build-dir> --target distclean` removes generated artifacts that live inside the source tree (packaging outputs, generated documentation, temporary Debian helper directories, SDTv2 `config/config.mk`, etc.). Use it after `cmake --build <build-dir> --target clean` if you also want to drop compiled objects from the build tree.
