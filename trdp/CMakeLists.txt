@@ -355,6 +355,20 @@ endif()
 
 if(TRDP_BUILD_TESTS)
     set(_trdp_tests_category "tests")
+    function(trdp_add_linking_smoke target library)
+        add_executable(${target} ${trdp_root}/test/linking/verify_link.c)
+        target_link_libraries(${target} PRIVATE ${library})
+        target_include_directories(${target} PRIVATE ${trdp_public_includes})
+        target_compile_features(${target} PRIVATE c_std_99)
+        target_compile_definitions(${target} PRIVATE ${trdp_common_compile_defs})
+        if(trdp_common_compile_opts)
+            target_compile_options(${target} PRIVATE ${trdp_common_compile_opts})
+        endif()
+        set_target_properties(${target} PROPERTIES FOLDER "${_trdp_tests_category}/linking")
+    endfunction()
+
+    trdp_add_linking_smoke(trdp_test_link_shared tcnopen::trdpap_shared)
+    trdp_add_linking_smoke(trdp_test_link_static tcnopen::trdpap_static)
     trdp_add_program(trdp_test_diverse_tau_tti
         CATEGORY "${_trdp_tests_category}"
         SOURCES ${trdp_root}/test/diverse/test_tau_tti.c
