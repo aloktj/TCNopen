@@ -5,6 +5,8 @@ project(trdp LANGUAGES C)
 include(GNUInstallDirs)
 include(CMakeParseArguments)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
 set(TRDP_TARGET_ARCH "generic" CACHE STRING "Identifier for the target architecture used in output directory names.")
 set(TRDP_TARGET_OS "LINUX" CACHE STRING "Name of the target operating system exposed as a preprocessor definition.")
 set(TRDP_TARGET_VOS "posix" CACHE STRING "Name of the VOS backend directory under src/vos.")
@@ -21,6 +23,16 @@ option(TRDP_HIGH_PERF_INDEXED "Build high performance (indexed) variants" OFF)
 option(TRDP_HIGH_PERF_BASE2 "Use base-2 addressing for high performance builds" OFF)
 option(TRDP_RT_THREADS "Enable realtime thread scheduling support" OFF)
 option(TRDP_DEBUG "Enable debug definitions" OFF)
+option(TRDP_BUILD_WIRESHARK_PLUGIN "Build the TRDP Wireshark dissector plugin" OFF)
+
+set(TRDP_WIRESHARK_PLUGIN_VERSION "2.2.4" CACHE STRING "Version string reported by the TRDP Wireshark plugin.")
+set(TRDP_WIRESHARK_PLUGIN_SUBDIR "epan" CACHE STRING "Subdirectory appended to the Wireshark plugindir for dissectors.")
+set(TRDP_WIRESHARK_PLUGIN_API_VERSION "" CACHE STRING "Wireshark plugin API version directory (leave empty to auto-detect).")
+set(TRDP_WIRESHARK_PLUGIN_DIR "" CACHE PATH "Base directory for Wireshark plugins (defaults to the pkg-config plugindir value).")
+set(TRDP_WIRESHARK_DOC_INSTALL_DIR "${CMAKE_INSTALL_DOCDIR}/trdp-spy" CACHE PATH "Install location for TRDP spy documentation.")
+set(TRDP_WIRESHARK_CFILE_URL "https://raw.githubusercontent.com/wireshark/wireshark/master-2.6/cfile.h" CACHE STRING "URL used to fetch cfile.h when it is not provided by the installed Wireshark headers.")
+set(TRDP_WIRESHARK_CFILE_PATH "" CACHE FILEPATH "Override path to a Wireshark cfile.h header when automatic detection fails.")
+option(TRDP_WIRESHARK_DOWNLOAD_CFILE "Attempt to download cfile.h when missing from the system headers" ON)
 
 set(trdp_root ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -653,6 +665,10 @@ add_custom_command(
 )
 
 add_custom_target(trdp_lint DEPENDS ${TRDP_LINT_OUTPUT})
+
+if(TRDP_BUILD_WIRESHARK_PLUGIN)
+    add_subdirectory(spy/src/trdp_spy)
+endif()
 
 find_program(TRDP_DOXYGEN_COMMAND doxygen)
 if(TRDP_DOXYGEN_COMMAND STREQUAL "TRDP_DOXYGEN_COMMAND-NOTFOUND")
