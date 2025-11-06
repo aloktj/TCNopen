@@ -1,0 +1,85 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 16,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "LINUX_X86_64",
+      "displayName": "Linux x86_64 (Release)",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/trdp/cmake/toolchains/linux-gcc.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TRDP_TARGET_ARCH": "linux-x86_64",
+        "TRDP_TARGET_OS": "LINUX",
+        "TRDP_TARGET_VOS": "posix",
+        "TRDP_MD_SUPPORT": "ON",
+        "TRDP_SOA_SUPPORT": "OFF",
+        "TRDP_TSN_SUPPORT": "OFF",
+        "TRDP_HIGH_PERF_INDEXED": "OFF",
+        "TRDP_HIGH_PERF_BASE2": "OFF",
+        "TRDP_RT_THREADS": "OFF",
+        "TRDP_DEBUG": "OFF",
+        "TRDP_ADDITIONAL_INCLUDE_DIRS": "/usr/include/uuid",
+        "TRDP_ADDITIONAL_COMPILE_DEFINITIONS": "L_ENDIAN;HAS_UUID",
+        "TRDP_ADDITIONAL_COMPILE_OPTIONS": "-Wall;-m64;-fstrength-reduce;-fsigned-char;-pthread;-fPIC;-Wno-unknown-pragmas;-Wno-unused-label;-Wno-unused-function;-Wno-address-of-packed-member",
+        "TRDP_ADDITIONAL_LINK_LIBRARIES": "uuid"
+      }
+    },
+    {
+      "name": "LINUX_X86_64_DEBUG",
+      "displayName": "Linux x86_64 (Debug)",
+      "inherits": "LINUX_X86_64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TRDP_DEBUG": "ON"
+      }
+    },
+    {
+      "name": "LINUX_X86_64_TSN",
+      "displayName": "Linux x86_64 with TSN",
+      "inherits": "LINUX_X86_64",
+      "cacheVariables": {
+        "TRDP_TSN_SUPPORT": "ON"
+      }
+    },
+    {
+      "name": "LINUX_X86_64_HP",
+      "displayName": "Linux x86_64 High Performance",
+      "inherits": "LINUX_X86_64",
+      "cacheVariables": {
+        "TRDP_HIGH_PERF_INDEXED": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "LINUX_X86_64",
+      "configurePreset": "LINUX_X86_64"
+    },
+    {
+      "name": "LINUX_X86_64_DEBUG",
+      "configurePreset": "LINUX_X86_64_DEBUG"
+    },
+    {
+      "name": "LINUX_X86_64_TSN",
+      "configurePreset": "LINUX_X86_64_TSN"
+    },
+    {
+      "name": "LINUX_X86_64_HP",
+      "configurePreset": "LINUX_X86_64_HP"
+    }
+  ]
+}
