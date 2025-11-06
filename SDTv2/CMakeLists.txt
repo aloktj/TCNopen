@@ -1,3 +1,6 @@
+cmake_minimum_required(VERSION 3.18)
+project(SDTv2 LANGUAGES C)
+
 set(SDTV2_SOURCES
     src/sdt_ipt.c
     src/sdt_mvb.c
@@ -18,6 +21,13 @@ set(SDTV2_TARGET_OS "LINUX" CACHE STRING "Target operating system for SDTv2 arti
 set_property(CACHE SDTV2_TARGET_OS PROPERTY STRINGS LINUX ARM_TI VXWORKS INTEGRITY CSS)
 
 set(SDTV2_OUTPUT_ROOT "${CMAKE_CURRENT_BINARY_DIR}/artifacts/${SDTV2_TARGET_OS}")
+
+option(SDTV2_BUILD_LINUX_TESTS "Build the Linux unit test executables" OFF)
+option(SDTV2_BUILD_CCUS_TESTS "Build the Integrity CCUS unit test executables" OFF)
+
+set(SDTV2_LINUX_TEST_MULTILIB_FLAGS "-m32" CACHE STRING "Multilib flags used when building the Linux test executables")
+set(SDTV2_LINUX_TEST_LIBRARY_VARIANT "static" CACHE STRING "SDTv2 library variant linked by the Linux test executables")
+set_property(CACHE SDTV2_LINUX_TEST_LIBRARY_VARIANT PROPERTY STRINGS static shared)
 
 option(SDTV2_ENABLE_IPT "Enable IPT protocol support" ON)
 option(SDTV2_ENABLE_MVB "Enable MVB protocol support" ON)
@@ -257,6 +267,131 @@ if(SDTV2_TARGET_OS STREQUAL "INTEGRITY")
     add_library(tcnopen::sdtv2_integrity_b ALIAS sdtv2_integrity_b)
 endif()
 
+if(SDTV2_BUILD_LINUX_TESTS)
+    if(NOT SDTV2_TARGET_OS STREQUAL "LINUX")
+        message(FATAL_ERROR "Linux tests can only be built when SDTV2_TARGET_OS is set to LINUX")
+    endif()
+
+    if(SDTV2_LINUX_TEST_LIBRARY_VARIANT STREQUAL "static")
+        set(_sdtv2_linux_test_library sdtv2_static)
+    elseif(SDTV2_LINUX_TEST_LIBRARY_VARIANT STREQUAL "shared")
+        set(_sdtv2_linux_test_library sdtv2_shared)
+    else()
+        message(FATAL_ERROR "Unknown SDTV2_LINUX_TEST_LIBRARY_VARIANT: ${SDTV2_LINUX_TEST_LIBRARY_VARIANT}")
+    endif()
+
+    set(SDTV2_LINUX_TEST_SOURCES
+        test/etc_test_functions.c
+        test/etc_test_scenarios.c
+        test/ipt_test_functions.c
+        test/ipt_test_scenarios.c
+        test/mvb_test_functions.c
+        test/mvb_test_scenarios.c
+        test/test.c
+        test/test_utils.c
+        test/uic_test_functions.c
+        test/uic_test_scenarios.c
+        test/wtb_test_functions.c
+        test/wtb_test_scenarios.c
+    )
+
+    set(_sdtv2_linux_test_compile_definitions
+        ${SDTV2_FEATURE_DEFINES}
+        ${SDTV2_OS_DEFINES}
+        UNITTEST
+    )
+
+    separate_arguments(SDTV2_LINUX_TEST_MULTILIB_FLAGS_LIST NATIVE_COMMAND "${SDTV2_LINUX_TEST_MULTILIB_FLAGS}")
+
+    function(sdtv2_add_linux_test target_name output_name)
+        add_executable(${target_name} ${SDTV2_LINUX_TEST_SOURCES})
+        target_compile_features(${target_name} PRIVATE c_std_99)
+        target_include_directories(${target_name}
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/api
+                ${CMAKE_CURRENT_SOURCE_DIR}/test
+        )
+        target_compile_definitions(${target_name} PRIVATE ${_sdtv2_linux_test_compile_definitions})
+        target_compile_options(${target_name} PRIVATE -Wall)
+        if(SDTV2_LINUX_TEST_MULTILIB_FLAGS_LIST)
+            target_compile_options(${target_name} PRIVATE ${SDTV2_LINUX_TEST_MULTILIB_FLAGS_LIST})
+            target_link_options(${target_name} PRIVATE ${SDTV2_LINUX_TEST_MULTILIB_FLAGS_LIST})
+        endif()
+        target_link_libraries(${target_name} PRIVATE ${_sdtv2_linux_test_library})
+        set_target_properties(${target_name}
+            PROPERTIES
+                RUNTIME_OUTPUT_DIRECTORY "${SDTV2_OUTPUT_ROOT}/test"
+                OUTPUT_NAME ${output_name}
+        )
+    endfunction()
+
+    sdtv2_add_linux_test(sdtv2_linux_test_release test)
+    set_target_properties(sdtv2_linux_test_release
+        PROPERTIES
+            EXCLUDE_FROM_DEFAULT_BUILD_DEBUG TRUE
+            EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO TRUE
+            EXCLUDE_FROM_DEFAULT_BUILD_MINSIZEREL TRUE
+    )
+
+    sdtv2_add_linux_test(sdtv2_linux_test_debug test_dbg)
+    set_target_properties(sdtv2_linux_test_debug
+        PROPERTIES
+            EXCLUDE_FROM_DEFAULT_BUILD_RELEASE TRUE
+            EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO TRUE
+            EXCLUDE_FROM_DEFAULT_BUILD_MINSIZEREL TRUE
+    )
+endif()
+
+if(SDTV2_BUILD_CCUS_TESTS)
+    if(NOT SDTV2_TARGET_OS STREQUAL "INTEGRITY")
+        message(FATAL_ERROR "CCUS tests can only be built when SDTV2_TARGET_OS is set to INTEGRITY")
+    endif()
+
+    get_filename_component(_sdtv2_ccus_compiler_name ${CMAKE_C_COMPILER} NAME)
+    if(NOT _sdtv2_ccus_compiler_name MATCHES "^ccppc(\\.exe)?$")
+        message(FATAL_ERROR "CCUS tests require the Integrity ccppc compiler provided by the active toolchain file")
+    endif()
+
+    if(NOT TARGET sdtv2_integrity_a OR NOT TARGET sdtv2_integrity_b)
+        message(FATAL_ERROR "CCUS tests require the Integrity dual libraries to be available")
+    endif()
+
+    set(SDTV2_CCUS_TEST_SOURCE ccus_test/ccus.c)
+
+    function(sdtv2_add_ccus_test target_name output_name extra_flags)
+        add_executable(${target_name} ${SDTV2_CCUS_TEST_SOURCE})
+        target_compile_features(${target_name} PRIVATE c_std_99)
+        target_include_directories(${target_name}
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/api
+                ${CMAKE_CURRENT_SOURCE_DIR}/ccus_test
+        )
+        target_compile_definitions(${target_name}
+            PRIVATE
+                ${SDTV2_FEATURE_DEFINES}
+                ${SDTV2_OS_DEFINES}
+        )
+        if(extra_flags)
+            separate_arguments(_sdtv2_ccus_flags_list NATIVE_COMMAND "${extra_flags}")
+            if(_sdtv2_ccus_flags_list)
+                target_compile_options(${target_name} PRIVATE ${_sdtv2_ccus_flags_list})
+                target_link_options(${target_name} PRIVATE ${_sdtv2_ccus_flags_list})
+            endif()
+        endif()
+        target_link_libraries(${target_name} PRIVATE sdtv2_integrity_a sdtv2_integrity_b)
+        set_target_properties(${target_name}
+            PROPERTIES
+                OUTPUT_NAME ${output_name}
+                RUNTIME_OUTPUT_DIRECTORY "${SDTV2_OUTPUT_ROOT}"
+                SUFFIX ".bin"
+        )
+    endfunction()
+
+    sdtv2_add_ccus_test(sdtv2_ccus_test_default ccus-test "")
+    sdtv2_add_ccus_test(sdtv2_ccus_test_oi ccus-test-oi "-OI")
+    sdtv2_add_ccus_test(sdtv2_ccus_test_oi_speed ccus-test-oi-speed "-Ospeed -OI")
+endif()
+
 add_custom_target(sdtv2_artifacts ALL
     DEPENDS
         $<$<OR:$<STREQUAL:${SDTV2_TARGET_OS},LINUX>,$<STREQUAL:${SDTV2_TARGET_OS},ARM_TI>,$<STREQUAL:${SDTV2_TARGET_OS},VXWORKS>,$<STREQUAL:${SDTV2_TARGET_OS},CSS>>:sdtv2_static>
@@ -264,4 +399,9 @@ add_custom_target(sdtv2_artifacts ALL
         $<$<STREQUAL:${SDTV2_TARGET_OS},LINUX>:sdtv2_linux_package>
         $<$<STREQUAL:${SDTV2_TARGET_OS},INTEGRITY>:sdtv2_integrity_a>
         $<$<STREQUAL:${SDTV2_TARGET_OS},INTEGRITY>:sdtv2_integrity_b>
+        $<$<AND:$<BOOL:${SDTV2_BUILD_LINUX_TESTS}>,$<STREQUAL:${SDTV2_TARGET_OS},LINUX>>:sdtv2_linux_test_release>
+        $<$<AND:$<BOOL:${SDTV2_BUILD_LINUX_TESTS}>,$<STREQUAL:${SDTV2_TARGET_OS},LINUX>>:sdtv2_linux_test_debug>
+        $<$<AND:$<BOOL:${SDTV2_BUILD_CCUS_TESTS}>,$<STREQUAL:${SDTV2_TARGET_OS},INTEGRITY>>:sdtv2_ccus_test_default>
+        $<$<AND:$<BOOL:${SDTV2_BUILD_CCUS_TESTS}>,$<STREQUAL:${SDTV2_TARGET_OS},INTEGRITY>>:sdtv2_ccus_test_oi>
+        $<$<AND:$<BOOL:${SDTV2_BUILD_CCUS_TESTS}>,$<STREQUAL:${SDTV2_TARGET_OS},INTEGRITY>>:sdtv2_ccus_test_oi_speed>
 )
