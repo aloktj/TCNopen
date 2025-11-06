@@ -8,7 +8,7 @@ PROJECT_NAME           = "TCNOpen TRDP-SPY"
 PROJECT_NUMBER         = 2.0
 PROJECT_BRIEF          =
 PROJECT_LOGO           =
-OUTPUT_DIRECTORY       = doc
+OUTPUT_DIRECTORY       = @TRDP_SPY_DOXYGEN_OUTPUT_DIR@
 CREATE_SUBDIRS         = NO
 ALLOW_UNICODE_NAMES    = NO
 OUTPUT_LANGUAGE        = English
@@ -107,7 +107,7 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = .
+INPUT                  = @TRDP_SPY_DOXYGEN_INPUT_DIR@
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.h \
                          *.c
@@ -119,7 +119,7 @@ EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           =
 EXAMPLE_PATTERNS       = *
 EXAMPLE_RECURSIVE      = NO
-IMAGE_PATH             = doc/custom
+IMAGE_PATH             = @TRDP_SPY_DOXYGEN_IMAGE_PATH@
 INPUT_FILTER           =
 FILTER_PATTERNS        =
 FILTER_SOURCE_FILES    = NO
@@ -218,8 +218,8 @@ LATEX_MAKEINDEX_CMD    = makeindex
 COMPACT_LATEX          = NO
 PAPER_TYPE             = a4wide
 EXTRA_PACKAGES         =
-LATEX_HEADER           = doc/custom/docstart.tex
-LATEX_FOOTER           = doc/custom/docend.tex
+LATEX_HEADER           = @TRDP_SPY_DOXYGEN_LATEX_HEADER@
+LATEX_FOOTER           = @TRDP_SPY_DOXYGEN_LATEX_FOOTER@
 LATEX_EXTRA_STYLESHEET =
 LATEX_EXTRA_FILES      =
 PDF_HYPERLINKS         = YES
