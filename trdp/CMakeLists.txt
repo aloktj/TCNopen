@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(trdp LANGUAGES C)
 
 include(GNUInstallDirs)
+include(CMakeParseArguments)
 
 set(TRDP_TARGET_ARCH "generic" CACHE STRING "Identifier for the target architecture used in output directory names.")
 set(TRDP_TARGET_OS "LINUX" CACHE STRING "Name of the target operating system exposed as a preprocessor definition.")
@@ -209,6 +210,323 @@ endif()
 foreach(target IN LISTS trdp_library_pairs)
     add_library(tcnopen::${target} ALIAS ${target})
 endforeach()
+
+option(TRDP_BUILD_EXAMPLES "Build TRDP example executables" OFF)
+option(TRDP_BUILD_TSN_EXAMPLES "Build TRDP TSN example executables" OFF)
+option(TRDP_BUILD_TESTS "Build TRDP test executables" OFF)
+option(TRDP_BUILD_HIGH_PERF_TESTS "Build TRDP high-performance test executables" OFF)
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+set(trdp_need_uuid FALSE)
+set(TRDP_HAVE_UUID FALSE)
+if(TRDP_BUILD_EXAMPLES OR TRDP_BUILD_TSN_EXAMPLES OR TRDP_BUILD_TESTS OR TRDP_BUILD_HIGH_PERF_TESTS)
+    set(trdp_need_uuid TRUE)
+endif()
+
+if(trdp_need_uuid)
+    find_library(TRDP_UUID_LIBRARY uuid)
+    if(TRDP_UUID_LIBRARY)
+        set(TRDP_HAVE_UUID TRUE)
+    else()
+        set(TRDP_HAVE_UUID FALSE)
+    endif()
+endif()
+
+function(trdp_add_program target)
+    cmake_parse_arguments(TRDP_PROG
+        "REQUIRE_UUID;REQUIRE_MD;REQUIRE_TSN;REQUIRE_HIGH_PERF"
+        "CATEGORY"
+        "SOURCES;LINK_LIBS"
+        ${ARGN}
+    )
+
+    if(TRDP_PROG_REQUIRE_MD AND NOT TRDP_MD_SUPPORT)
+        message(STATUS "Skipping ${target}: requires TRDP_MD_SUPPORT")
+        return()
+    endif()
+
+    if(TRDP_PROG_REQUIRE_TSN AND NOT TRDP_TSN_SUPPORT)
+        message(STATUS "Skipping ${target}: requires TRDP_TSN_SUPPORT")
+        return()
+    endif()
+
+    if(TRDP_PROG_REQUIRE_HIGH_PERF AND NOT TRDP_HIGH_PERF_INDEXED)
+        message(STATUS "Skipping ${target}: requires TRDP_HIGH_PERF_INDEXED")
+        return()
+    endif()
+
+    if(TRDP_PROG_REQUIRE_UUID)
+        if(NOT TRDP_HAVE_UUID)
+            message(STATUS "Skipping ${target}: libuuid not found")
+            return()
+        endif()
+    endif()
+
+    if(NOT TRDP_PROG_SOURCES)
+        message(FATAL_ERROR "trdp_add_program called without SOURCES for ${target}")
+    endif()
+
+    add_executable(${target} ${TRDP_PROG_SOURCES})
+    target_link_libraries(${target} PRIVATE tcnopen::trdpap_shared)
+    target_include_directories(${target} PRIVATE ${trdp_public_includes})
+    target_compile_features(${target} PRIVATE c_std_99)
+    target_compile_definitions(${target} PRIVATE ${trdp_common_compile_defs})
+    if(trdp_common_compile_opts)
+        target_compile_options(${target} PRIVATE ${trdp_common_compile_opts})
+    endif()
+    if(TRDP_PROG_LINK_LIBS)
+        target_link_libraries(${target} PRIVATE ${TRDP_PROG_LINK_LIBS})
+    endif()
+    if(TRDP_PROG_REQUIRE_UUID)
+        target_link_libraries(${target} PRIVATE ${TRDP_UUID_LIBRARY})
+    endif()
+    if(TRDP_PROG_CATEGORY)
+        set_target_properties(${target} PROPERTIES FOLDER "${TRDP_PROG_CATEGORY}")
+    endif()
+endfunction()
+
+if(TRDP_BUILD_EXAMPLES)
+    set(_trdp_examples_category "examples")
+    trdp_add_program(trdp_example_echo_callback
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/echoCallback.c
+    )
+    trdp_add_program(trdp_example_echo_polling
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/echoPolling.c
+    )
+    trdp_add_program(trdp_example_echo_trackside
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/echoTrackside.c
+    )
+    trdp_add_program(trdp_example_send_data
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/sendData.c
+    )
+    trdp_add_program(trdp_example_receive_hello
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/receiveHello.c
+    )
+    trdp_add_program(trdp_example_send_hello
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/sendHello.c
+    )
+    trdp_add_program(trdp_example_source_filter
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/sourceFilter/sourceFiltering.c
+    )
+    trdp_add_program(trdp_example_service_registry
+        CATEGORY "${_trdp_examples_category}"
+        SOURCES ${trdp_root}/example/SRM/serviceRegistrySample.c
+    )
+    trdp_add_program(trdp_example_taul_pd
+        CATEGORY "${_trdp_examples_category}"
+        REQUIRE_UUID
+        SOURCES ${trdp_root}/example/TAUL_PD/taulApp_PD_sample.c
+    )
+endif()
+
+if(TRDP_BUILD_TSN_EXAMPLES)
+    set(_trdp_tsn_category "examples/TSN")
+    trdp_add_program(trdp_example_tsn_receive
+        CATEGORY "${_trdp_tsn_category}"
+        REQUIRE_TSN
+        SOURCES ${trdp_root}/example/TSN/receiveTSN.c
+    )
+    trdp_add_program(trdp_example_tsn_send
+        CATEGORY "${_trdp_tsn_category}"
+        REQUIRE_TSN
+        SOURCES ${trdp_root}/example/TSN/sendTSN.c
+    )
+endif()
+
+if(TRDP_BUILD_TESTS)
+    set(_trdp_tests_category "tests")
+    trdp_add_program(trdp_test_diverse_tau_tti
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/test_tau_tti.c
+    )
+    trdp_add_program(trdp_test_diverse_inaug
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/inaugTest.c
+    )
+    trdp_add_program(trdp_test_diverse_library
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/LibraryTests.c
+    )
+    trdp_add_program(trdp_test_diverse_md_length
+        CATEGORY "${_trdp_tests_category}"
+        REQUIRE_MD
+        SOURCES ${trdp_root}/test/diverse/mdDataLengthTest.c
+    )
+    trdp_add_program(trdp_test_diverse_get_stats
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/getStats.c
+    )
+    trdp_add_program(trdp_test_diverse_mc_receiver
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/MCreceiver.c
+    )
+    trdp_add_program(trdp_test_diverse_md_single
+        CATEGORY "${_trdp_tests_category}"
+        REQUIRE_MD
+        SOURCES ${trdp_root}/test/diverse/test_mdSingle.c
+    )
+    trdp_add_program(trdp_test_diverse_mem_sizes
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/test_memSizes.c
+    )
+    trdp_add_program(trdp_test_diverse_pd_responder
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/pd_responder.c
+    )
+    trdp_add_program(trdp_test_diverse_pd_mc_routing
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/pdMcRoutingTest.c
+    )
+    trdp_add_program(trdp_test_diverse_pd_pull
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/pdPull.c
+    )
+    trdp_add_program(trdp_test_diverse_sub
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/subTest.c
+    )
+    trdp_add_program(trdp_test_diverse_crc
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/crc-test.c
+    )
+    trdp_add_program(trdp_test_diverse_vos
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/vtest.c
+    )
+    trdp_add_program(trdp_test_diverse_traffic_shaping
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/test_trafficShaping.c
+    )
+    trdp_add_program(trdp_test_diverse_tau_dnr
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/diverse/test_tau_dnr.c
+    )
+    trdp_add_program(trdp_test_pd_patterns
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/pdpatterns/trdp-pd-test.c
+    )
+    trdp_add_program(trdp_test_marshalling
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/marshalling/test_marshalling.c
+    )
+    trdp_add_program(trdp_test_marshalling_2
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/marshalling/test_marshalling2.c
+    )
+    trdp_add_program(trdp_test_marshalling_stats
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/marshalling/getStatsMarshall.c
+    )
+    trdp_add_program(trdp_test_udp_md
+        CATEGORY "${_trdp_tests_category}"
+        REQUIRE_MD
+        REQUIRE_UUID
+        SOURCES ${trdp_root}/test/udpmdcom/mdTest4.c
+    )
+    trdp_add_program(trdp_test_local_api
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/localtest/api_test.c
+    )
+    trdp_add_program(trdp_test_local_api2
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/localtest/api_test_2.c
+    )
+    trdp_add_program(trdp_test_local_api3
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/localtest/api_test_3.c
+    )
+    trdp_add_program(trdp_test_local_api4
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/localtest/api_test_4.c
+    )
+    trdp_add_program(trdp_test_ladder_md
+        CATEGORY "${_trdp_tests_category}"
+        REQUIRE_MD
+        REQUIRE_UUID
+        SOURCES
+            ${trdp_root}/test/laddermdtest/mdTestMain.c
+            ${trdp_root}/test/laddermdtest/mdTestCaller.c
+            ${trdp_root}/test/laddermdtest/mdTestReplier.c
+            ${trdp_root}/test/laddermdtest/mdTestMdReceiveManager.c
+            ${trdp_root}/test/laddermdtest/mdTestCommon.c
+            ${trdp_root}/test/laddermdtest/mdTestLog.c
+    )
+    if(TARGET trdp_test_ladder_md)
+        target_compile_definitions(trdp_test_ladder_md PRIVATE TRDP_OPTION_LADDER)
+    endif()
+    trdp_add_program(trdp_test_ladder_pd_subscriber
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/ladderpdtest/ladderApplication_subscriber.c
+    )
+    if(TARGET trdp_test_ladder_pd_subscriber)
+        target_compile_definitions(trdp_test_ladder_pd_subscriber PRIVATE TRDP_OPTION_LADDER)
+    endif()
+    trdp_add_program(trdp_test_ladder_pd_publisher
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/ladderpdtest/ladderApplication_publisher.c
+    )
+    if(TARGET trdp_test_ladder_pd_publisher)
+        target_compile_definitions(trdp_test_ladder_pd_publisher PRIVATE TRDP_OPTION_LADDER)
+    endif()
+    trdp_add_program(trdp_test_ladder_pd_multi
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/ladderpdtest/ladderApplication_multiPD.c
+    )
+    if(TARGET trdp_test_ladder_pd_multi)
+        target_compile_definitions(trdp_test_ladder_pd_multi PRIVATE TRDP_OPTION_LADDER)
+    endif()
+    trdp_add_program(trdp_test_md_patterns
+        CATEGORY "${_trdp_tests_category}"
+        REQUIRE_MD
+        SOURCES ${trdp_root}/test/mdpatterns/trdp-md-test.c
+    )
+    trdp_add_program(trdp_test_md_pattern_replier
+        CATEGORY "${_trdp_tests_category}"
+        REQUIRE_MD
+        SOURCES ${trdp_root}/test/mdpatterns/rep-testreplier.c
+    )
+    trdp_add_program(trdp_test_md_pattern_caller
+        CATEGORY "${_trdp_tests_category}"
+        REQUIRE_MD
+        SOURCES ${trdp_root}/test/mdpatterns/rep-testcaller.c
+    )
+    trdp_add_program(trdp_test_xml_pd
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/xml/trdp-xmlpd-test.c
+    )
+    trdp_add_program(trdp_test_xml_print
+        CATEGORY "${_trdp_tests_category}"
+        SOURCES ${trdp_root}/test/xml/trdp-xmlprint-test.c
+    )
+endif()
+
+if(TRDP_BUILD_HIGH_PERF_TESTS)
+    set(_trdp_hp_category "tests/high-performance")
+    trdp_add_program(trdp_test_pd_patterns_fast
+        CATEGORY "${_trdp_hp_category}"
+        REQUIRE_HIGH_PERF
+        SOURCES ${trdp_root}/test/pdpatterns/trdp-pd-test-fast.c
+    )
+    trdp_add_program(trdp_test_md_patterns_fast
+        CATEGORY "${_trdp_hp_category}"
+        REQUIRE_HIGH_PERF
+        REQUIRE_MD
+        SOURCES ${trdp_root}/test/mdpatterns/trdp-md-test-fast.c
+    )
+    trdp_add_program(trdp_test_xml_pd_fast
+        CATEGORY "${_trdp_hp_category}"
+        REQUIRE_HIGH_PERF
+        SOURCES ${trdp_root}/test/xml/trdp-xmlpd-test-fast.c
+    )
+endif()
 
 install(TARGETS ${trdp_library_pairs}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
