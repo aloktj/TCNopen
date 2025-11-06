@@ -47,10 +47,59 @@ I rewrote the Wireshark Plugin [TRDP-SPY](trdp/spy/) for current Wireshark. Comp
 ## In 2020
  Some more Linux features:
  - Debian packaging and shared libraries added for Linux.
- - You now can build the Wireshark plugin on Linux w/o the Wireshark source - just from the spy tree via make or from the root with debuild.
- - How build the Debian packages? Install the build-dependencies (Build-Depends: debhelper (>= 12.8), doxygen, libwireshark-dev (>= 2.6), libglib2.0-dev, graphviz), go into tcnopen-trdp/trdp and run "make bindeb-pkg" to build the lib and the wireshark plugin packages. Install them with "sudo dpkg -i ../*.deb". Wireshark will find its plugin automatically and your Linux compiler should find the headers also. Only need to add -ltrdp -ltau or -ltrdp-hp -ltau-hp to the linker of your applications.
+ - The Wireshark plugin can be built on Linux without the Wireshark source tree and now integrates with the CMake targets described below.
  With this, I will not pre-build the Wireshark plugins anymore. Please checkout the upstream branch for older pre-build plugin binaries 2.6, 3.0 and 3.2.
  - Actually, I added the plugins for 3.4 for convenience for a last time.
+
+## Building with CMake
+
+The top-level project uses out-of-source builds. Configure a build directory with
+
+```sh
+cmake -S . -B build/LINUX_X86_64 --preset LINUX_X86_64
+```
+
+The presets in `CMakePresets.json` enable Ninja builds with the toolchain files under `trdp/cmake/toolchains`. They also toggle the frequently requested cache options (e.g. `TRDP_MD_SUPPORT`, `TRDP_TSN_SUPPORT`, `TRDP_HIGH_PERF_INDEXED`, `TRDP_DEBUG`) so you can pick the combination that matches your target. You can override any cache value by appending `-D<NAME>=<VALUE>` to the configure command, or create a new out-of-source directory by replacing `build/LINUX_X86_64` with a custom path and reusing `-S`/`-B`.
+
+When no preset fits your environment (different architecture, generator, or compiler), start from the hidden `base` preset:
+
+```sh
+cmake -S . -B build/custom --preset base -DTRDP_TARGET_ARCH=<arch> -DTRDP_TARGET_OS=<os> -DTRDP_TARGET_VOS=<vos>
+```
+
+All presets assume CMake ≥ 3.16, Ninja, and the platform-specific toolchain prerequisites. On Linux you need GCC (or Clang), `uuid-dev`, `libglib2.0-dev`, and the usual build-time dependencies such as FlexeLint (optional), Doxygen, and Graphviz when you request documentation. Debian packaging additionally requires `devscripts` (`debuild`) and the packages listed in `debian/control` (`debhelper`, `libwireshark-dev` ≥ 2.6, …). Windows users must select a generator that matches their compiler (for example `-G "Visual Studio 17 2022"`) and ensure Wireshark development headers are available.
+
+Build any configured tree with
+
+```sh
+cmake --build build/LINUX_X86_64
+```
+
+You can swap the directory with another build folder or use `cmake --build --preset <name>` for the matching presets.
+
+### Migrating Debian packaging workflows
+
+The legacy `make bindeb-pkg` shortcut is now exposed as a CMake target:
+
+```sh
+cmake --build build/LINUX_X86_64 --target bindeb-pkg
+```
+
+The resulting `.deb` files are staged under `build/LINUX_X86_64/pkg`. Install them as before with `sudo dpkg -i build/LINUX_X86_64/pkg/*.deb` and link your applications with `-ltrdp -ltau` (or the `-hp` variants). The helper target still wraps `debuild -us -uc -i -I -b`, so you need the same Debian toolchain and lintian/dpkg helpers. Source package creation remains unsupported and will print a diagnostic just like the historic GNU Make recipe.
+
+### Migrating Wireshark TRDP-SPY plugin builds
+
+After configuration, build the plugin with
+
+```sh
+cmake --build build/LINUX_X86_64 --target trdp_spy_plugin
+```
+
+The shared object/DLL ends up in `build/LINUX_X86_64/trdp/spy/src/trdp_spy`. Use the existing install scripts to copy the artifact into Wireshark’s plugin directory, or invoke `cmake --build … --target install` with a suitable `CMAKE_INSTALL_PREFIX`. Plugin documentation now lives behind `trdp_spy_doc_html` and `trdp_spy_doc_pdf` targets, mirroring the old `doc-html` and `doc-pdf` make rules.
+
+### Remaining GNU Make fallbacks
+
+Some optional documentation steps still prefer GNU Make when available—for example, generating the PDF manual for the TRDP-SPY plugin runs `make` inside the Doxygen-generated LaTeX tree. When `make` is missing, the CMake targets emit a warning and skip the PDF step while still producing HTML output. All other historical make targets are now reachable through `cmake --build … --target <name>`.
 
 ## In 2021 and 2022
  I moved jobs and now work for Stadler Rail. I am not using TRDP on any recurring basis anymore in my position (rather MQTT, VDV301 ...). So this repo will wind down even further in updates.
