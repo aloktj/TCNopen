@@ -59,7 +59,7 @@ The top-level project uses out-of-source builds. Configure a build directory wit
 cmake -S . -B build/LINUX_X86_64 --preset LINUX_X86_64
 ```
 
-The presets in `CMakePresets.json` enable Ninja builds with the toolchain files under `trdp/cmake/toolchains`. They also toggle the frequently requested cache options (e.g. `TRDP_MD_SUPPORT`, `TRDP_TSN_SUPPORT`, `TRDP_HIGH_PERF_INDEXED`, `TRDP_DEBUG`) so you can pick the combination that matches your target. You can override any cache value by appending `-D<NAME>=<VALUE>` to the configure command, or create a new out-of-source directory by replacing `build/LINUX_X86_64` with a custom path and reusing `-S`/`-B`.
+The presets in `CMakePresets.json` enable Ninja builds with the toolchain files under `trdp/cmake/toolchains`. They also toggle the frequently requested cache options (e.g. `TRDP_MD_SUPPORT`, `TRDP_TSN_SUPPORT`, `TRDP_HIGH_PERF_INDEXED`, `TRDP_DEBUG`) so you can pick the combination that matches your target. You can override any cache value by appending `-D<NAME>=<VALUE>` to the configure command, or create a new out-of-source directory by replacing `build/LINUX_X86_64` with a custom path and reusing `-S`/`-B`. When you only care about the TRDP stack, disable the SDTv2 build with `-DTCNOPEN_BUILD_SDT=OFF`. The option automatically falls back to `OFF` when the `SDTv2` folder is absent (for example when you perform a sparse checkout), so you can keep the source tree focused on `trdp/`.
 
 When no preset fits your environment (different architecture, generator, or compiler), start from the hidden `base` preset:
 

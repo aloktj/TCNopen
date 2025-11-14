@@ -1,10 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 project(TCNopen LANGUAGES C)
 
-option(TCNOPEN_BUILD_SDT "Build the SDTv2 safety data transmission library" ON)
+set(_tcnopen_have_sdtv2 OFF)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/SDTv2/CMakeLists.txt")
+    set(_tcnopen_have_sdtv2 ON)
+endif()
+
+option(TCNOPEN_BUILD_SDT "Build the SDTv2 safety data transmission library" ${_tcnopen_have_sdtv2})
 option(TCNOPEN_BUILD_TRDP "Build the TRDP communication stack" ON)
 
 if(TCNOPEN_BUILD_SDT)
+    if(NOT _tcnopen_have_sdtv2)
+        message(FATAL_ERROR
+            "TCNOPEN_BUILD_SDT is enabled but the SDTv2 directory is missing. "
+            "Either restore the folder or re-configure with -DTCNOPEN_BUILD_SDT=OFF.")
+    endif()
     add_subdirectory(SDTv2)
 endif()
 
