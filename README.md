@@ -97,6 +97,38 @@ cmake --build build/LINUX_X86_64 --target trdp_spy_plugin
 
 The shared object/DLL ends up in `build/LINUX_X86_64/trdp/spy/src/trdp_spy`. Use the existing install scripts to copy the artifact into Wireshark’s plugin directory, or invoke `cmake --build … --target install` with a suitable `CMAKE_INSTALL_PREFIX`. Plugin documentation now lives behind `trdp_spy_doc_html` and `trdp_spy_doc_pdf` targets, mirroring the old `doc-html` and `doc-pdf` make rules.
 
+### Embedding TCNopen inside a larger CMake project
+
+You can treat this repository like any other CMake-based dependency: add it as a Git submodule (or vendor the sources) and let the parent project drive the configuration. A minimal setup looks like this:
+
+```sh
+git submodule add https://github.com/T12z/TCNopen.git extern/TCNopen
+```
+
+```cmake
+# Top-level CMakeLists.txt of the consuming project
+cmake_minimum_required(VERSION 3.16)
+project(my_app LANGUAGES C)
+
+# Optionally tailor the TRDP build before adding the subdirectory.
+set(TCNOPEN_BUILD_SDT OFF CACHE BOOL "Skip SDTv2 when embedding" FORCE)
+set(TRDP_MD_SUPPORT ON CACHE BOOL "Enable MD APIs" FORCE)
+
+add_subdirectory(extern/TCNopen)
+
+add_executable(my_app src/main.c)
+target_link_libraries(my_app PRIVATE tcnopen::trdpap_shared)
+# Swap tcnopen::trdpap_shared for tcnopen::trdpap_static when you prefer the
+# static library. Lower-level variants (tcnopen::trdp_shared, etc.) are also
+# exposed if you only need the core stack.
+```
+
+Key points when embedding:
+
+* The `add_subdirectory` call builds the SDTv2 and TRDP subprojects according to the cache variables visible to the parent. Turn SDTv2 off with `-DTCNOPEN_BUILD_SDT=OFF` (or by forcing the cache entry as shown above) when you only need TRDP.
+* All TRDP libraries are exported as namespaced targets (`tcnopen::trdpap_shared`, `tcnopen::trdpap_static`, `tcnopen::trdp_shared`, `tcnopen::trdp_static`, …). Linking against one of them automatically propagates the include paths, compiler options, and required system libraries to your targets.
+* Super-builds can reuse the presets in `CMakePresets.json` by forwarding `CMAKE_TOOLCHAIN_FILE`, `TRDP_TARGET_ARCH`, etc., or override individual flags on the parent `cmake -S <root> -B <build>` invocation.
+
 ### Remaining GNU Make fallbacks
 
 Some optional documentation steps still prefer GNU Make when available—for example, generating the PDF manual for the TRDP-SPY plugin runs `make` inside the Doxygen-generated LaTeX tree. When `make` is missing, the CMake targets emit a warning and skip the PDF step while still producing HTML output. All other historical make targets are now reachable through `cmake --build … --target <name>`.
