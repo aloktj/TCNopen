@@ -31,15 +31,26 @@ I rewrote the Wireshark Plugin [TRDP-SPY](trdp/spy/) for current Wireshark. Comp
  - Nothing else, no product, no specific enhancements.
 
 ## Building with CMake (next steps)
-The repository now ships a full CMake build that mirrors the legacy `make` targets. To try it out or consume this tree as a submodule:
+The repository now ships a full CMake build that mirrors the legacy `make` targets. Presets are provided so you can get started with
+`cmake --list-presets` and pick the configuration that best matches your workflow (release, debug, high-performance, TSN-focused,
+or "libraries only"). To try it out or consume this tree as a submodule:
 
-1. **Configure** – pick one of the existing legacy configs (or disable the import by passing `TRDP_LEGACY_CONFIG=NONE`) and run:
+1. **Configure** – pick one of the existing legacy configs (or disable the import by passing `TRDP_LEGACY_CONFIG=NONE`) and run
+   either the preset or a fully manual invocation. For example, to mirror the Linux default you can now do:
+   ```sh
+   cmake --preset linux-posix-release
+   ```
+   or keep crafting the cache variables explicitly:
    ```sh
    cmake -S . -B build -DTRDP_LEGACY_CONFIG=LINUX_X86_64_config \
          -DTRDP_BUILD_EXAMPLES=ON -DTRDP_BUILD_TESTS=ON
    ```
    All feature switches from the Makefiles (TSN, MD, SOA, etc.) are exposed as cache options with the prefix `TRDP_` and default to the values that were parsed from the selected legacy config.
-2. **Build** – request the libraries or helper tools you need, e.g.:
+2. **Build** – request the libraries or helper tools you need, either through presets …
+   ```sh
+   cmake --build --preset build-linux-posix-release --target trdp trdpap example
+   ```
+   …or by invoking the generator directly:
    ```sh
    cmake --build build --target trdp trdpap example echoCallback mdManager
    ```

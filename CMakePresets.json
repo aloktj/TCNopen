@@ -1,0 +1,109 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 16,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "linux-posix-release",
+      "displayName": "Linux / POSIX VOS (Release)",
+      "description": "Build everything enabled in LINUX_X86_64_config using Release flags.",
+      "inherits": ["base"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TRDP_LEGACY_CONFIG": "LINUX_X86_64_config",
+        "TRDP_BUILD_EXAMPLES": "ON",
+        "TRDP_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-posix-debug",
+      "displayName": "Linux / POSIX VOS (Debug)",
+      "description": "Same feature set as linux-posix-release but with Debug flags enabled.",
+      "inherits": ["base"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TRDP_LEGACY_CONFIG": "LINUX_X86_64_config",
+        "TRDP_BUILD_EXAMPLES": "ON",
+        "TRDP_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-posix-minimal",
+      "displayName": "Linux / POSIX VOS (libraries only)",
+      "description": "Release build that focuses on libtrdp and libtrdpap without the demo executables.",
+      "inherits": ["base"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TRDP_LEGACY_CONFIG": "LINUX_X86_64_config",
+        "TRDP_BUILD_EXAMPLES": "OFF",
+        "TRDP_BUILD_TESTS": "OFF",
+        "TRDP_BUILD_TSN_EXAMPLES": "OFF",
+        "TRDP_BUILD_XML_TOOLS": "OFF",
+        "TRDP_BUILD_LOCAL_TESTS": "OFF",
+        "TRDP_BUILD_MARSHALLING_TOOLS": "OFF"
+      }
+    },
+    {
+      "name": "linux-high-perf",
+      "displayName": "Linux / High-performance profile",
+      "description": "Mirrors the legacy LINUX_X86_64_HP_config preset and emits the HP shared libraries.",
+      "inherits": ["base"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TRDP_LEGACY_CONFIG": "LINUX_X86_64_HP_config",
+        "TRDP_HIGH_PERF_INDEXED": "ON",
+        "TRDP_BUILD_HIGH_PERF_VARIANT": "ON",
+        "TRDP_BUILD_EXAMPLES": "ON",
+        "TRDP_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-tsn",
+      "displayName": "Linux / TSN helper profile",
+      "description": "Build with the TSN helper binaries enabled via the LINUX_TSN_config legacy preset.",
+      "inherits": ["base"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TRDP_LEGACY_CONFIG": "LINUX_TSN_config",
+        "TRDP_BUILD_TSN_EXAMPLES": "ON",
+        "TRDP_BUILD_EXAMPLES": "ON",
+        "TRDP_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-linux-posix-release",
+      "configurePreset": "linux-posix-release"
+    },
+    {
+      "name": "build-linux-posix-debug",
+      "configurePreset": "linux-posix-debug"
+    },
+    {
+      "name": "build-linux-posix-minimal",
+      "configurePreset": "linux-posix-minimal",
+      "targets": ["trdp", "trdpap"]
+    },
+    {
+      "name": "build-linux-high-perf",
+      "configurePreset": "linux-high-perf"
+    },
+    {
+      "name": "build-linux-tsn",
+      "configurePreset": "linux-tsn"
+    }
+  ]
+}
