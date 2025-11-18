@@ -495,7 +495,11 @@ endif()
 if(TRDP_BUILD_TESTS AND TRDP_BUILD_LOCAL_TESTS)
     trdp_add_app(localtest SOURCES test/localtest/api_test.c LIBRARY TRDP::trdpap OPTIONS -Wno-unused-variable)
     trdp_add_app(localtest2 SOURCES test/localtest/api_test_2.c LIBRARY TRDP::trdpap OPTIONS -Wno-unused-variable)
-    trdp_add_app(localtest3 SOURCES test/localtest/api_test_3.c LIBRARY TRDP::trdpap OPTIONS -Wno-unused-variable)
+    if(TRDP_SOA_SUPPORT)
+        trdp_add_app(localtest3 SOURCES test/localtest/api_test_3.c LIBRARY TRDP::trdpap OPTIONS -Wno-unused-variable)
+    else()
+        message(STATUS "Skipping localtest3: TRDP_SOA_SUPPORT is OFF")
+    endif()
     trdp_add_app(localtest4 SOURCES test/localtest/api_test_4.c LIBRARY TRDP::trdpap OPTIONS -Wno-unused-variable)
 endif()
 
@@ -518,6 +522,63 @@ install(TARGETS
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+set(_trdp_help_lines
+    "TCNopen / TRDP build help"
+    "=========================="
+    "Configure:"
+    "  cmake --list-presets                    # shows linux-posix-*, linux-high-perf, linux-tsn, vxworks-ppc, integrity-posix"
+    "  cmake --preset linux-posix-release      # mirrors legacy configs under trdp/config/(name)"
+    "  cmake -S . -B build -DTRDP_LEGACY_CONFIG=NONE -DTRDP_TARGET_VOS=posix ..."
+    "Legacy configs / presets:"
+    "  - TRDP_LEGACY_CONFIG=LINUX_X86_64_config  (default linux-posix-{release,debug,minimal} presets)"
+    "  - TRDP_LEGACY_CONFIG=LINUX_X86_64_HP_config  (linux-high-perf preset, emits HP libs)"
+    "  - TRDP_LEGACY_CONFIG=LINUX_TSN_config      (linux-tsn preset with TSN helpers)"
+    "  - TRDP_LEGACY_CONFIG=VXWORKS_PPC_config    (vxworks-ppc preset, requires Wind River toolchain)"
+    "  - TRDP_LEGACY_CONFIG=NONE + TRDP_TARGET_OS/VOS (integrity-posix preset shows how to override manually)"
+    "Feature toggles (cache options):"
+    "  - TRDP_MD_SUPPORT / TRDP_SOA_SUPPORT  – Message Data stack and SOA helpers"
+    "  - TRDP_TSN_SUPPORT + TRDP_BUILD_TSN_EXAMPLES – Time Sensitive Networking sockets + sendTSN/receiveTSN demos"
+    "  - TRDP_RT_THREADS, TRDP_USE_UUID      – real-time scheduling flag, libuuid/HAS_UUID (md* samples/tests)"
+    "  - TRDP_FULL_BUILD                     – fold TAU optional sources into libtrdp"
+    "  - TRDP_HIGH_PERF_INDEXED / TRDP_HIGH_PERF_BASE2 / TRDP_BUILD_HIGH_PERF_VARIANT – emit hp libs (trdp_hp*, tau_hp*)"
+    "  - TRDP_BUILD_SHARED                   – enable trdp_shared/tau_shared shared objects"
+    "  - TRDP_BUILD_EXAMPLES                 – demo binaries (sendHello, receiveHello, sendData, echo*, sourceFiltering, etc.)"
+    "  - TRDP_BUILD_TESTS                    – regression tools (getStats, vostest, trdp_pd_test*, trdp_md_test*, ... )"
+    "  - TRDP_BUILD_LOCAL_TESTS              – localtest{,2,3,4} loopback API tests (link against TRDP::trdpap)"
+    "  - TRDP_BUILD_XML_TOOLS                – XML utilities (trdp_xmlprint_test, trdp_xmlpd_test, *_fast when HP enabled)"
+    "  - TRDP_BUILD_MARSHALLING_TOOLS        – test_marshalling"
+    "Common build targets:"
+    "  - Libraries: trdp, trdpap (static), trdp_shared/tau_shared (when TRDP_BUILD_SHARED), trdp_hp/tau_hp_shared (HP variants)"
+    "  - Examples/tests: request executables explicitly (e.g., cmake --build build --target sendHello receiveHello trdp_pd_test)"
+    "  - XML & marshalling helpers: trdp_xmlprint_test, trdp_xmlpd_test{,_fast}, test_marshalling"
+    "  - TSN demos: sendTSN, receiveTSN (require TRDP_TSN_SUPPORT, TRDP_BUILD_TSN_EXAMPLES and vos_sockTSN.c)"
+    "  - UUID-dependent binaries (mdManager, mdDataLength, trdp_md_* tests) require TRDP_USE_UUID=ON and libuuid headers/libs"
+    "Run: cmake --build [build-dir] --target trdp-help  # or --target help via alias below"
+)
+
+add_custom_target(trdp-help)
+foreach(line IN LISTS _trdp_help_lines)
+    add_custom_command(TARGET trdp-help
+        COMMAND ${CMAKE_COMMAND} -E echo "${line}"
+        VERBATIM
+    )
+endforeach()
+if(NOT CMAKE_GENERATOR MATCHES "Ninja")
+    set(_trdp_warn_deprecated_original ${CMAKE_WARN_DEPRECATED})
+    set(CMAKE_WARN_DEPRECATED OFF)
+    cmake_policy(PUSH)
+    cmake_policy(SET CMP0037 OLD)
+    add_custom_target(help DEPENDS trdp-help)
+    cmake_policy(POP)
+    if(DEFINED _trdp_warn_deprecated_original)
+        set(CMAKE_WARN_DEPRECATED ${_trdp_warn_deprecated_original})
+    else()
+        unset(CMAKE_WARN_DEPRECATED)
+    endif()
+else()
+    message(STATUS "Generator '${CMAKE_GENERATOR}' reserves target 'help'; invoke target trdp-help explicitly")
+endif()
 if(TRDP_BUILD_SHARED)
     install(TARGETS trdp_shared tau_shared
         EXPORT TRDPTargets

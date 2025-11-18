@@ -51,6 +51,7 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <mqueue.h>
 
 #ifdef __linux__
         #include <uuid/uuid.h>
@@ -60,6 +61,13 @@
 #include "trdp_if_light.h"
 #include "trdp_private.h"
 #include "trdp_utils.h"
+
+static int am_big_endian(void)
+{
+    const UINT16 value = 0x0102u;
+    return (*((const UINT8 *)&value)) == 0x01u;
+}
+
 
 #define TRDP_IP4_ADDR(a, b, c, d)    ((am_big_endian()) ?                                                                                                      \
                                       ((UINT32) ((a) & 0xFF) << 24) | ((UINT32) ((b) & 0xFF) << 16) | ((UINT32) ((c) & 0xFF) << 8) | ((UINT32) ((d) & 0xFF)) : \
@@ -645,7 +653,6 @@ static int testReplySend(trdp_apl_cbenv_t msg, TRDP_MD_TEST_DS_T mdTestData)
         (UINT8 *) &mdTestData,
         sizeof(mdTestData),         /* dataset size */
         NULL);                      /* srcURI */
-        );
 
     //
     if (errv != TRDP_NO_ERR)
@@ -677,7 +684,6 @@ static int testReplyQuerySend(trdp_apl_cbenv_t msg, TRDP_MD_TEST_DS_T mdTestData
         (UINT8 *) &mdTestData,
         sizeof(mdTestData),         /* dataset size */
         NULL);                      /* srcURI */
-        );
 
     //
     if (errv != TRDP_NO_ERR)
@@ -2029,7 +2035,8 @@ static int test_initialize()
     }
 
     /* set network topo counter */
-    tlc_setTopoCount(appHandle, 151);
+    tlc_setETBTopoCount(appHandle, 151);
+    tlc_setOpTrainTopoCount(appHandle, 151);
 
     return 0;
 }

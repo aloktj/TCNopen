@@ -320,6 +320,7 @@ int main (int argc, char * *argv)
     err = tlp_subscribe( appHandle,                 /*    our application identifier           */
                          &subHandle,                /*    our subscription identifier          */
                          NULL, NULL,                /*    userRef & callback function          */
+                         0u,                        /*    service id                           */
                          comId_In,                  /*    ComID                                */
                          0u,                        /*    topocount: local consist only        */
                          0u,
@@ -327,6 +328,7 @@ int main (int argc, char * *argv)
                          VOS_INADDR_ANY,            /*     */
                          destIP,                    /*    Default destination IP (or MC Group) */
                          TRDP_FLAGS_DEFAULT,        /*   */
+                         NULL,                      /*    default interface                    */
                          PD_COMRX_TIMEOUT,         /*    Time out in us                       */
                          TRDP_TO_SET_TO_ZERO);      /*    delete invalid data    on timeout    */
 
@@ -344,6 +346,7 @@ int main (int argc, char * *argv)
     err = tlp_publish(  appHandle,                  /*    our application identifier    */
                         &pubHandle,                 /*    our pulication identifier     */
                         NULL, NULL,
+                        0u,
                         comId_Out,                  /*    ComID to send                 */
                         0u,                         /*    local consist only            */
                         0u,
