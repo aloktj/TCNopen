@@ -81,6 +81,34 @@
         "TRDP_BUILD_EXAMPLES": "ON",
         "TRDP_BUILD_TESTS": "ON"
       }
+    },
+    {
+      "name": "vxworks-ppc",
+      "displayName": "VxWorks / PowerPC",
+      "description": "Cross-compile using VXWORKS_PPC_config and the Wind River GCC toolchain.",
+      "inherits": ["base"],
+      "toolchainFile": "cmake/toolchains/VxWorksPPC.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TRDP_LEGACY_CONFIG": "VXWORKS_PPC_config",
+        "TRDP_BUILD_EXAMPLES": "ON",
+        "TRDP_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "integrity-posix",
+      "displayName": "INTEGRITY / POSIX VOS",
+      "description": "Green Hills INTEGRITY build that reuses the POSIX VOS backend.",
+      "inherits": ["base"],
+      "toolchainFile": "cmake/toolchains/Integrity.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TRDP_LEGACY_CONFIG": "NONE",
+        "TRDP_TARGET_OS": "INTEGRITY",
+        "TRDP_TARGET_VOS": "posix",
+        "TRDP_BUILD_EXAMPLES": "OFF",
+        "TRDP_BUILD_TESTS": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -104,6 +132,14 @@
     {
       "name": "build-linux-tsn",
       "configurePreset": "linux-tsn"
+    },
+    {
+      "name": "build-vxworks-ppc",
+      "configurePreset": "vxworks-ppc"
+    },
+    {
+      "name": "build-integrity-posix",
+      "configurePreset": "integrity-posix"
     }
   ]
 }
