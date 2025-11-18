@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
@@ -517,8 +518,8 @@ EXT_DECL VOS_ERR_T vos_sockOpenTSN (
     }
 #endif
 
-    struct sock_txtime sk_txtime = { 
-        pOptions->clockid,
+    struct sock_txtime sk_txtime = {
+        (clockid_t)pOptions->clockId,
         pOptions->no_drop_late ? 0 : SOF_TXTIME_DEADLINE_MODE
         /* using inverse notation to enable "deadline"-mode by default in TSN mode. */
     };

@@ -20,7 +20,7 @@
  *      AM 2022-12-01: Ticket #399 Abstract socket type (VOS_SOCK_T, TRDP_SOCK_T) introduced, vos_select function is not anymore called with '+1', it is provided with the highest socket, and VOS implementation of the function will add the '+1' (if needed)
  *     AHW 2021-05-06: Ticket #322 Subscriber multicast message routing in multi-home device
  *      Tz 2019-11-24: added headers for PikeOS-Posix
- *      AÖ 2019-11-11: Ticket #290: Add support for Virtualization on Windows
+ *      AÃ– 2019-11-11: Ticket #290: Add support for Virtualization on Windows
  *      BL 2019-09-10: Ticket #278 Don't check if a socket is < 0
  *      BL 2019-06-17: Ticket #191 Add provisions for TSN / Hard Real Time (open source)
  *      V 2.0.0 --------- ^^^ -----------
@@ -187,6 +187,8 @@ typedef struct
     BOOL8   raw;            /**< use raw socket, not for receiver!                  */
     UINT16  vlanId;
     CHAR8   ifName[VOS_MAX_IF_NAME_SIZE]; /**< interface name if available          */
+    INT32   clockId;        /**< clock source for TSN scheduling (CLOCK_REALTIME default) */
+    BOOL8   no_drop_late;   /**< allow late packet drop handling for TSN sockets    */
 } VOS_SOCK_OPT_T;
 
 typedef fd_set VOS_FDS_T;
