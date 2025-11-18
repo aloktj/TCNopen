@@ -30,6 +30,35 @@ I rewrote the Wireshark Plugin [TRDP-SPY](trdp/spy/) for current Wireshark. Comp
  - The [upstream](https://github.com/T12z/TCNopen/tree/upstream) if all you need is a mirror.
  - Nothing else, no product, no specific enhancements.
 
+## Building with CMake (next steps)
+The repository now ships a full CMake build that mirrors the legacy `make` targets. Presets are provided so you can get started with
+`cmake --list-presets` and pick the configuration that best matches your workflow (release, debug, high-performance, TSN-focused,
+or "libraries only"). To try it out or consume this tree as a submodule:
+
+1. **Configure** – pick one of the existing legacy configs (or disable the import by passing `TRDP_LEGACY_CONFIG=NONE`) and run
+   either the preset or a fully manual invocation. For example, to mirror the Linux default you can now do:
+   ```sh
+   cmake --preset linux-posix-release
+   ```
+   or keep crafting the cache variables explicitly:
+   ```sh
+   cmake -S . -B build -DTRDP_LEGACY_CONFIG=LINUX_X86_64_config \
+         -DTRDP_BUILD_EXAMPLES=ON -DTRDP_BUILD_TESTS=ON
+   ```
+   All feature switches from the Makefiles (TSN, MD, SOA, etc.) are exposed as cache options with the prefix `TRDP_` and default to the values that were parsed from the selected legacy config.
+2. **Build** – request the libraries or helper tools you need, either through presets …
+   ```sh
+   cmake --build --preset build-linux-posix-release --target trdp trdpap example
+   ```
+   …or by invoking the generator directly:
+   ```sh
+   cmake --build build --target trdp trdpap example echoCallback mdManager
+   ```
+   The layout under `build/bld/output/<arch>-{rel,dbg}` matches the existing `make` output, so manual packaging/scripts continue to work.
+3. **Install / reuse** – to install locally run `cmake --install build`. If you are embedding this repository into a larger CMake project, add it as a submodule and call `add_subdirectory(trdp)` from your super-project; link to the exported targets `TRDP::trdp` or `TRDP::trdpap` just like any other package.
+
+The goal for the next iteration is to exercise the presets with the most relevant configs (Linux, VxWorks, INTEGRITY) and iron out portability bugs before replacing the legacy Makefiles.
+
 ## In 2017
  - I updated the TRDP-Spy plugin to wireshark 2.5. Later on, Upstream have updated the plugin to a 2.x version as well, so I split this off to an [archive branch](https://github.com/T12z/TCNopen/tree/wireshark2.5). 
  - I also started into looking how to pair that up with SCADE but got off-tracked into "paid work". Currently it is *nothing* useful. Don't bother looking. If there is more interest in this topic send me some kind of thumbs-up, so I feel like I should get back onto it.
